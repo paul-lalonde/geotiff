@@ -8,6 +8,38 @@ import (
 )
 
 var testfile = "./testdata/test.tif"
+var testbigfile = "/Users/flux/ul/data/research/edmonton/wildfire_wui_system/data/FBP_Canada_30m_3978_22052024_forRelease.tif"
+
+func Test_ReadBigfile(t *testing.T) {
+	wantHeader := head{
+		byteOrder:     binary.LittleEndian,
+		tIFIdentifier: 43,
+		iFDByteOffset: 3170191900, // TODO: find way to not hardcode this
+	}
+	r, err := os.Open(testbigfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := readHeader(r)
+	if err != nil {
+		t.Fail()
+	}
+	if got.byteOrder != wantHeader.byteOrder {
+		t.Error("incorrect byte order:")
+	}
+
+	if got.tIFIdentifier != wantHeader.tIFIdentifier {
+		t.Error("incorrect TIFID")
+	}
+
+	if got.iFDByteOffset != wantHeader.iFDByteOffset {
+		t.Error("incorrect Byte Offset")
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func Test_ReadHeader_Happy(t *testing.T) {
 	wantHeader := head{
@@ -48,6 +80,11 @@ func Test_ReadTags_Happy(t *testing.T) {
 		testfile     string
 		expectedTags map[Tag][]uint64
 	}{
+		{
+			name:     "testbigfile",
+			testfile: testbigfile,
+			expectedTags: map[Tag][]uint64{},
+		},
 		{
 			name:     "test",
 			testfile: "./testdata/test.tif",

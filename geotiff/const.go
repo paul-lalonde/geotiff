@@ -37,6 +37,7 @@ const (
 // file as a TIFF file.
 const (
 	tiffIdentifier uint16 = 42
+	bigTiffIdentifier uint16 = 43
 )
 
 // From the Tiff 6.0 Specification (p.16)
@@ -56,6 +57,9 @@ const (
 	SRATIONAL fieldType = 10 // SRATIONAL =  Two SLONG’s: the first represents the numerator of a fraction, the second the denominator.
 	FLOAT     fieldType = 11 // FLOAT     =  Single precision (4-byte) IEEE format.
 	DOUBLE    fieldType = 12 // DOUBLE    =  Double precision (8-byte) IEEE format
+	TIFF_LONG8 fieldType = 16 // unsigned 8-byte
+	TIFF_SLONG8 fieldType = 17 // signed 8-byte
+	TIFF_IFD8 fieldType = 18 // 8 byte IFD offset
 )
 
 const (
@@ -67,16 +71,18 @@ const (
 )
 
 // fieldTypeLen is the length of every field type in bytes
-var fieldTypeLen = [...]uint32{
+var fieldTypeLen = [...]uint64{
 	zeroByte, oneByte, oneByte, twoByte,
 	fourByte, eightByte, oneByte, oneByte,
-	twoByte, fourByte, eightByte, fourByte, eightByte,
+	twoByte, fourByte, eightByte, fourByte, 
+	eightByte, 0, 0, 0,
+	8, 8, 8,
 }
 
 // bytes returns the number of bytes in each data type
 //
 // returns 0 if unrecognized
-func (f fieldType) bytes() uint32 {
+func (f fieldType) bytes() uint64 {
 	if f == 0 || int(f) > len(fieldTypeLen) {
 		return fieldTypeLen[0]
 	}
@@ -96,6 +102,9 @@ var fieldTypeToLabel = map[fieldType]string{
 	SRATIONAL: "SRATIONAL",
 	FLOAT:     "FLOAT",
 	DOUBLE:    "DOUBLE",
+	TIFF_LONG8: "TIFF_LONG8",
+	TIFF_SLONG8: "TIFF_SLONG8",
+	TIFF_IFD8: "TIFF_IFD8",
 }
 
 func (f fieldType) String() string {

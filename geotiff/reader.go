@@ -16,7 +16,7 @@ import (
 // A TIFF file begins with an 8-byte image file header that points to an image
 // file directory (IFD). An image file directory contains information about the
 // image, as well as pointers to the actual image data.
-type head struct {
+type smallhead struct {
 	// Bytes 0-1
 	//
 	// The byte order used within the file
@@ -34,6 +34,14 @@ type head struct {
 	iFDByteOffset uint32
 }
 
+type head struct {
+	byteOrder binary.ByteOrder
+	tIFIdentifier uint16
+	offsetsize uint16
+	reserved uint16
+	iFDByteOffset uint64
+}
+
 // iFDEntry contains the image file directory (IFD) entries.
 //
 // Per the TIFF 6.0 Specification (p.14)
@@ -44,16 +52,16 @@ type head struct {
 // none). (Do not forget to write the 4 bytes of 0 after the last IFD.) There
 // must be at least 1 IFD in a TIFF file and each IFD must have at least one
 // entry.
-type iFDEntry struct {
+type SmalliFDEntry struct {
 	// Bytes 0-1
 	//
 	// The Tag that identifies the field.
-	Tag Tag
+	ITag Tag
 
 	// Bytes 2-3
 	//
 	//The field FType.
-	FType fieldType
+	IFType fieldType
 
 	//  Bytes 4-7
 	//
@@ -66,24 +74,146 @@ type iFDEntry struct {
 	// the field. The Value is expected to begin on a word boundary; the
 	// corresponding Value Offset will thus be an even number. This file offset
 	// may point anywhere in the file, even after the image data.
-	ValueOffset uint32
+	IValueOffset uint32
 }
 
-func (ifd *iFDEntry) totalBytes() uint32 {
-	return ifd.Count * ifd.FType.bytes()
+type BigiFDEntry struct {
+	// Bytes 0-1
+	//
+	// The Tag that identifies the field.
+	ITag Tag
+
+	// Bytes 2-3
+	//
+	//The field FType.
+	IFType fieldType
+
+	//  Bytes 4-11
+	//
+	// The number of values, Count of the indicated Type.
+	Count uint64
+
+	// Bytes 12-19
+	//
+	// The Value Offset, the file offset (in bytes) of the Value for
+	// the field. The Value is expected to begin on a word boundary; the
+	// corresponding Value Offset will thus be an even number. This file offset
+	// may point anywhere in the file, even after the image data.
+	IValueOffset int64
+}
+
+type iFDEntry interface {
+	totalBytes() uint64
+	value(r io.ReadSeeker, byteOrder binary.ByteOrder)  (*tagData, error)
+	FType() fieldType
+	Tag() Tag
+	ValueOffset() int64
+	SetValueOffset(int64)
+}
+func (ifd *BigiFDEntry) totalBytes() uint64 {
+	return ifd.Count * ifd.FType().bytes()
+}
+func (ifd *BigiFDEntry) Tag() Tag {
+	return ifd.ITag
+}
+func (ifd *BigiFDEntry) FType() fieldType {
+	return ifd.IFType
+}
+func (ifd *BigiFDEntry) SetValueOffset(v int64) {
+	ifd.IValueOffset = v
+}
+func (ifd *BigiFDEntry) ValueOffset() int64 {
+	return ifd.IValueOffset
+}
+
+func (ifd *SmalliFDEntry) totalBytes() uint64 {
+	return uint64(ifd.Count) * ifd.FType().bytes()
+}
+func (ifd *SmalliFDEntry) Tag() Tag {
+	return ifd.ITag
+}
+func (ifd *SmalliFDEntry) FType() fieldType {
+	return ifd.IFType
+}
+func (ifd *SmalliFDEntry) SetValueOffset(v int64) {
+	ifd.IValueOffset = uint32(v)
+}
+func (ifd *SmalliFDEntry) ValueOffset() int64 {
+	return int64(ifd.IValueOffset)
 }
 
 // value reads the directory value
-func (ifd *iFDEntry) value(r io.ReadSeeker, byteOrder binary.ByteOrder) (*tagData, error) {
+func (ifd *SmalliFDEntry) value(r io.ReadSeeker, byteOrder binary.ByteOrder) (*tagData, error) {
 	t := tagData{
-		fType:  ifd.FType,
-		length: ifd.Count,
+		fType:  ifd.FType(),
+		length: uint64(ifd.Count),
 	}
-	offset := int64(ifd.ValueOffset)
+	offset := int64(ifd.IValueOffset)
 	if _, err := r.Seek(offset, io.SeekStart); err != nil {
 		return nil, err
 	}
-	switch ifd.FType {
+	switch ifd.FType() {
+	case BYTE:
+		t.byteData = make([]uint8, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.byteData); err != nil {
+			return nil, err
+		}
+	case ASCII:
+		p := make([]uint8, ifd.Count)
+		if err := binary.Read(r, byteOrder, p); err != nil {
+			return nil, err
+		}
+		t.asciiData = string(p)
+	case SHORT:
+		t.shortData = make([]uint16, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.shortData); err != nil {
+			return nil, err
+		}
+	case LONG:
+		t.longData = make([]uint32, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.longData); err != nil {
+			return nil, err
+		}
+	case FLOAT:
+		t.floatData = make([]float32, ifd.Count)
+		if err := binary.Read(r, byteOrder, t.floatData); err != nil {
+			return nil, err
+		}
+	case DOUBLE:
+		t.doubleData = make([]float64, ifd.Count)
+		if err := binary.Read(r, byteOrder, t.doubleData); err != nil {
+			return nil, err
+		}
+	case TIFF_LONG8:
+		t.long8Data = make([]uint64, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.long8Data); err != nil {
+			return nil, err
+		}
+	case TIFF_SLONG8:
+		t.slong8Data = make([]int64, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.slong8Data); err != nil {
+			return nil, err
+		}
+	case TIFF_IFD8:
+		t.long8Data = make([]uint64, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.long8Data); err != nil {
+			return nil, err
+		}
+	}
+	return &t, nil
+}
+
+// value reads the directory value
+func (ifd *BigiFDEntry) value(r io.ReadSeeker, byteOrder binary.ByteOrder) (*tagData, error) {
+	t := tagData{
+		fType:  ifd.FType(),
+		length: ifd.Count,
+	}
+	offset := ifd.IValueOffset
+	if _, err := r.Seek(offset, io.SeekStart); err != nil {
+		return nil, err
+	}
+	switch ifd.FType() {
 	case BYTE:
 		t.byteData = make([]uint8, ifd.Count)
 		if err := binary.Read(r, byteOrder, &t.byteData); err != nil {
@@ -147,17 +277,38 @@ func readHeader(r io.Reader) (head, error) {
 		return fileHeader, fmt.Errorf("err: failed to read tiff header: %w", err)
 	}
 
-	if fileHeader.tIFIdentifier != tiffIdentifier {
-		return fileHeader, fmt.Errorf("invalid tiff file identifier: expected %d got %d",
-			tiffIdentifier, fileHeader.tIFIdentifier)
+	if fileHeader.tIFIdentifier != tiffIdentifier && fileHeader.tIFIdentifier != bigTiffIdentifier {
+		return fileHeader, fmt.Errorf("invalid tiff file identifier: expected %d or %d, got %d",
+			tiffIdentifier, bigTiffIdentifier, fileHeader.tIFIdentifier)
 	}
 
 	// Offset
+	if fileHeader.tIFIdentifier == tiffIdentifier {
+		var offset uint32 
+		err = binary.Read(r, fileHeader.byteOrder, &offset)
+		if err != nil {
+			return fileHeader, fmt.Errorf("failed to read IFD byte offset: %w", err)
+		}
+		fileHeader.iFDByteOffset = uint64(offset)
+		return fileHeader, nil
+	}
+
+	// We have a bigtiff.  Read the rest of the header.
+	var offsetsize uint16
+	var reserved uint16
+	err = binary.Read(r, fileHeader.byteOrder, &offsetsize)
+	if err != nil || offsetsize != 8{
+		return fileHeader, fmt.Errorf("failed to read offset size")
+	}
+	err = binary.Read(r, fileHeader.byteOrder, &reserved)
+	if err != nil {
+		return fileHeader, fmt.Errorf("failed to read reserved")
+	}
 	err = binary.Read(r, fileHeader.byteOrder, &fileHeader.iFDByteOffset)
 	if err != nil {
 		return fileHeader, fmt.Errorf("failed to read IFD byte offset: %w", err)
 	}
-	return fileHeader, nil
+	return fileHeader, nil	
 }
 
 // tagData holds the tag data for each tag
@@ -165,13 +316,15 @@ func readHeader(r io.Reader) (head, error) {
 // where only one data field is used at any one time
 type tagData struct {
 	fType      fieldType
-	length     uint32
+	length     uint64
 	byteData   []uint8
 	asciiData  string
 	shortData  []uint16
 	longData   []uint32
 	floatData  []float32
 	doubleData []float64
+	long8Data []uint64
+	slong8Data []int64
 }
 
 // Tags holds the tag files
@@ -249,20 +402,39 @@ func readTags(r io.ReadSeeker) (Tags, head, error) {
 		//
 		// The number of Directory Entries is contained in the
 		// first two bytes of each IFD
-		var numDirectoryEntries uint16
-		if err := binary.Read(r, h.byteOrder, &numDirectoryEntries); err != nil {
-			return tags, h, errors.New("error: unable to read directory entry")
+		var numDirectoryEntries uint64
+		switch(h.tIFIdentifier) {
+		case tiffIdentifier:
+			var nEntries uint16
+			if err := binary.Read(r, h.byteOrder, &nEntries); err != nil {
+				return tags, h, errors.New("error: unable to read directory entry")
+			}
+			numDirectoryEntries = uint64(nEntries)
+		case bigTiffIdentifier:
+			if err := binary.Read(r, h.byteOrder, &numDirectoryEntries); err != nil {
+				return tags, h, errors.New("error: unable to read directory entry")
+			}
 		}
 		var nextDirOffset int64
-		for i := uint16(0); i < numDirectoryEntries; i++ {
-
+		for i := uint64(0); i < numDirectoryEntries; i++ {
 			var iFDEntry iFDEntry
-			if err := binary.Read(r, h.byteOrder, &iFDEntry); err != nil {
-				return tags, h, err
+			switch(h.tIFIdentifier) {
+			case tiffIdentifier:
+				var siFDEntry SmalliFDEntry
+				if err := binary.Read(r, h.byteOrder, &siFDEntry); err != nil {
+					return tags, h, err
+				}
+				iFDEntry = &siFDEntry
+			case bigTiffIdentifier:
+				var biFDEntry BigiFDEntry
+				if err := binary.Read(r, h.byteOrder, &biFDEntry); err != nil {
+					return tags, h, err
+				}
+				iFDEntry = &biFDEntry
 			}
 
-			if iFDEntry.FType.bytes() == 0 {
-				return tags, h, fmt.Errorf("error: unrecognized tag %d", iFDEntry.Tag)
+			if iFDEntry.FType().bytes() == 0 {
+				return tags, h, fmt.Errorf("error: unrecognized tag %d", iFDEntry.Tag())
 			}
 
 			// Per  the TIFF 6.0 Specification
@@ -271,17 +443,26 @@ func readTags(r io.ReadSeeker) (Tags, head, error) {
 			// within the 4-byte Value Offset, i.e., stored in the
 			// lower numbered bytes.
 			//
-			// Whether the Value fits within 4 bytes is determined by the Type
-			// and Count of the field
-			if iFDEntry.totalBytes() <= fourByte {
-				currentOffset, _ := r.Seek(0, io.SeekCurrent)
-				iFDEntry.ValueOffset = uint32(currentOffset) - fourByte
+// TODO(PAL) 
+			switch(h.tIFIdentifier) {
+			case tiffIdentifier:
+				// Whether the Value fits within 4 bytes is determined by the Type
+				// and Count of the field
+				if iFDEntry.totalBytes() <= fourByte {
+					currentOffset, _ := r.Seek(0, io.SeekCurrent)
+					iFDEntry.SetValueOffset(int64(currentOffset) - fourByte)
+				}
+			case bigTiffIdentifier:
+				if iFDEntry.totalBytes() <= eightByte {
+					currentOffset, _ := r.Seek(0, io.SeekCurrent)
+					iFDEntry.SetValueOffset(int64(currentOffset) - eightByte)
+				}
 			}
 
 			nextDirOffset, _ = r.Seek(0, io.SeekCurrent)
 
 			// Read the tags
-			tagName := iFDEntry.Tag
+			tagName := iFDEntry.Tag()
 			tagvalue, err := iFDEntry.value(r, h.byteOrder)
 			if err != nil {
 				return tags, h, err
@@ -294,8 +475,17 @@ func readTags(r io.ReadSeeker) (Tags, head, error) {
 			}
 		}
 
-		if err = binary.Read(r, h.byteOrder, &iFDOffset); err != nil {
-			return tags, h, fmt.Errorf("err: could not jump to next file: %w", err)
+		switch h.tIFIdentifier {
+		case tiffIdentifier:
+			var offset uint32
+			if err = binary.Read(r, h.byteOrder, &offset); err != nil {
+				return tags, h, fmt.Errorf("err: could not jump to next file: %w", err)
+			}
+			iFDOffset = uint64(offset)
+		case bigTiffIdentifier:
+			if err = binary.Read(r, h.byteOrder, &iFDOffset); err != nil {
+				return tags, h, fmt.Errorf("err: could not jump to next file: %w", err)
+			}
 		}
 	}
 	return tags, h, nil
