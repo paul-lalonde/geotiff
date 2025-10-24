@@ -35,10 +35,10 @@ type smallhead struct {
 }
 
 type head struct {
-	byteOrder binary.ByteOrder
+	byteOrder     binary.ByteOrder
 	tIFIdentifier uint16
-	offsetsize uint16
-	reserved uint16
+	offsetsize    uint16
+	reserved      uint16
 	iFDByteOffset uint64
 }
 
@@ -104,12 +104,13 @@ type BigiFDEntry struct {
 
 type iFDEntry interface {
 	totalBytes() uint64
-	value(r io.ReadSeeker, byteOrder binary.ByteOrder)  (*tagData, error)
+	value(r io.ReadSeeker, byteOrder binary.ByteOrder) (*tagData, error)
 	FType() fieldType
 	Tag() Tag
 	ValueOffset() int64
 	SetValueOffset(int64)
 }
+
 func (ifd *BigiFDEntry) totalBytes() uint64 {
 	return ifd.Count * ifd.FType().bytes()
 }
@@ -284,7 +285,7 @@ func readHeader(r io.Reader) (head, error) {
 
 	// Offset
 	if fileHeader.tIFIdentifier == tiffIdentifier {
-		var offset uint32 
+		var offset uint32
 		err = binary.Read(r, fileHeader.byteOrder, &offset)
 		if err != nil {
 			return fileHeader, fmt.Errorf("failed to read IFD byte offset: %w", err)
@@ -297,7 +298,7 @@ func readHeader(r io.Reader) (head, error) {
 	var offsetsize uint16
 	var reserved uint16
 	err = binary.Read(r, fileHeader.byteOrder, &offsetsize)
-	if err != nil || offsetsize != 8{
+	if err != nil || offsetsize != 8 {
 		return fileHeader, fmt.Errorf("failed to read offset size")
 	}
 	err = binary.Read(r, fileHeader.byteOrder, &reserved)
@@ -308,7 +309,7 @@ func readHeader(r io.Reader) (head, error) {
 	if err != nil {
 		return fileHeader, fmt.Errorf("failed to read IFD byte offset: %w", err)
 	}
-	return fileHeader, nil	
+	return fileHeader, nil
 }
 
 // tagData holds the tag data for each tag
@@ -323,7 +324,7 @@ type tagData struct {
 	longData   []uint32
 	floatData  []float32
 	doubleData []float64
-	long8Data []uint64
+	long8Data  []uint64
 	slong8Data []int64
 }
 
@@ -403,7 +404,7 @@ func readTags(r io.ReadSeeker) (Tags, head, error) {
 		// The number of Directory Entries is contained in the
 		// first two bytes of each IFD
 		var numDirectoryEntries uint64
-		switch(h.tIFIdentifier) {
+		switch h.tIFIdentifier {
 		case tiffIdentifier:
 			var nEntries uint16
 			if err := binary.Read(r, h.byteOrder, &nEntries); err != nil {
@@ -418,7 +419,7 @@ func readTags(r io.ReadSeeker) (Tags, head, error) {
 		var nextDirOffset int64
 		for i := uint64(0); i < numDirectoryEntries; i++ {
 			var iFDEntry iFDEntry
-			switch(h.tIFIdentifier) {
+			switch h.tIFIdentifier {
 			case tiffIdentifier:
 				var siFDEntry SmalliFDEntry
 				if err := binary.Read(r, h.byteOrder, &siFDEntry); err != nil {
@@ -443,8 +444,8 @@ func readTags(r io.ReadSeeker) (Tags, head, error) {
 			// within the 4-byte Value Offset, i.e., stored in the
 			// lower numbered bytes.
 			//
-// TODO(PAL) 
-			switch(h.tIFIdentifier) {
+			// TODO(PAL)
+			switch h.tIFIdentifier {
 			case tiffIdentifier:
 				// Whether the Value fits within 4 bytes is determined by the Type
 				// and Count of the field

@@ -81,8 +81,8 @@ func Test_ReadTags_Happy(t *testing.T) {
 		expectedTags map[Tag][]uint64
 	}{
 		{
-			name:     "testbigfile",
-			testfile: testbigfile,
+			name:         "testbigfile",
+			testfile:     testbigfile,
 			expectedTags: map[Tag][]uint64{},
 		},
 		{

@@ -36,7 +36,7 @@ const (
 // An arbitrary but carefully chosen number (42) that further identifies the
 // file as a TIFF file.
 const (
-	tiffIdentifier uint16 = 42
+	tiffIdentifier    uint16 = 42
 	bigTiffIdentifier uint16 = 43
 )
 
@@ -44,22 +44,22 @@ const (
 type fieldType uint16
 
 const (
-	NONE      fieldType = 0  // None      =  Default for no field type
-	BYTE      fieldType = 1  // BYTE      =  8-bit unsigned integer.
-	ASCII     fieldType = 2  // ASCII     =  8-bit byte that contains a 7-bit ASCII code; the last byte must be NULL (binary zero).
-	SHORT     fieldType = 3  // SHORT     =  16-bit (2-byte) unsigned integer.
-	LONG      fieldType = 4  // LONG      =  32-bit (4-byte) unsigned integer.
-	RATIONAL  fieldType = 5  // RATIONAL  =  Two LONGS: the first represents the numerator of a
-	SBYTE     fieldType = 6  // SBYTE     =  An 8-bit signed (twos-complement) integer.
-	UNDEFINED fieldType = 7  // UNDEFINED =  An 8-bit byte that may contain anything, depending on the definition of the field.
-	SSHORT    fieldType = 8  // SSHORT    =  A 16-bit (2-byte) signed (twos-complement) integer.
-	SLONG     fieldType = 9  // SLONG     =  A 32-bit (4-byte) signed (twos-complement) integer.
-	SRATIONAL fieldType = 10 // SRATIONAL =  Two SLONG’s: the first represents the numerator of a fraction, the second the denominator.
-	FLOAT     fieldType = 11 // FLOAT     =  Single precision (4-byte) IEEE format.
-	DOUBLE    fieldType = 12 // DOUBLE    =  Double precision (8-byte) IEEE format
-	TIFF_LONG8 fieldType = 16 // unsigned 8-byte
+	NONE        fieldType = 0  // None      =  Default for no field type
+	BYTE        fieldType = 1  // BYTE      =  8-bit unsigned integer.
+	ASCII       fieldType = 2  // ASCII     =  8-bit byte that contains a 7-bit ASCII code; the last byte must be NULL (binary zero).
+	SHORT       fieldType = 3  // SHORT     =  16-bit (2-byte) unsigned integer.
+	LONG        fieldType = 4  // LONG      =  32-bit (4-byte) unsigned integer.
+	RATIONAL    fieldType = 5  // RATIONAL  =  Two LONGS: the first represents the numerator of a
+	SBYTE       fieldType = 6  // SBYTE     =  An 8-bit signed (twos-complement) integer.
+	UNDEFINED   fieldType = 7  // UNDEFINED =  An 8-bit byte that may contain anything, depending on the definition of the field.
+	SSHORT      fieldType = 8  // SSHORT    =  A 16-bit (2-byte) signed (twos-complement) integer.
+	SLONG       fieldType = 9  // SLONG     =  A 32-bit (4-byte) signed (twos-complement) integer.
+	SRATIONAL   fieldType = 10 // SRATIONAL =  Two SLONG’s: the first represents the numerator of a fraction, the second the denominator.
+	FLOAT       fieldType = 11 // FLOAT     =  Single precision (4-byte) IEEE format.
+	DOUBLE      fieldType = 12 // DOUBLE    =  Double precision (8-byte) IEEE format
+	TIFF_LONG8  fieldType = 16 // unsigned 8-byte
 	TIFF_SLONG8 fieldType = 17 // signed 8-byte
-	TIFF_IFD8 fieldType = 18 // 8 byte IFD offset
+	TIFF_IFD8   fieldType = 18 // 8 byte IFD offset
 )
 
 const (
@@ -74,7 +74,7 @@ const (
 var fieldTypeLen = [...]uint64{
 	zeroByte, oneByte, oneByte, twoByte,
 	fourByte, eightByte, oneByte, oneByte,
-	twoByte, fourByte, eightByte, fourByte, 
+	twoByte, fourByte, eightByte, fourByte,
 	eightByte, 0, 0, 0,
 	8, 8, 8,
 }
@@ -90,21 +90,21 @@ func (f fieldType) bytes() uint64 {
 }
 
 var fieldTypeToLabel = map[fieldType]string{
-	BYTE:      "BYTE",
-	ASCII:     "ASCII",
-	SHORT:     "SHORT",
-	LONG:      "LONG",
-	RATIONAL:  "RATIONAL",
-	SBYTE:     "SBYTE",
-	UNDEFINED: "UNDEFINED",
-	SSHORT:    "SSHORT",
-	SLONG:     "SLONG",
-	SRATIONAL: "SRATIONAL",
-	FLOAT:     "FLOAT",
-	DOUBLE:    "DOUBLE",
-	TIFF_LONG8: "TIFF_LONG8",
+	BYTE:        "BYTE",
+	ASCII:       "ASCII",
+	SHORT:       "SHORT",
+	LONG:        "LONG",
+	RATIONAL:    "RATIONAL",
+	SBYTE:       "SBYTE",
+	UNDEFINED:   "UNDEFINED",
+	SSHORT:      "SSHORT",
+	SLONG:       "SLONG",
+	SRATIONAL:   "SRATIONAL",
+	FLOAT:       "FLOAT",
+	DOUBLE:      "DOUBLE",
+	TIFF_LONG8:  "TIFF_LONG8",
 	TIFF_SLONG8: "TIFF_SLONG8",
-	TIFF_IFD8: "TIFF_IFD8",
+	TIFF_IFD8:   "TIFF_IFD8",
 }
 
 func (f fieldType) String() string {
