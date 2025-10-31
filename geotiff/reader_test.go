@@ -214,7 +214,7 @@ func checkToTolerance(x float64, y float64, tolerance float64) bool {
 }
 
 func Test_ReadData_Happy(t *testing.T) {
-	r, err := os.Open(testfile)
+	r, err := os.Open(testbigfile)
 	if err != nil {
 		t.Fatal(err)
 	}

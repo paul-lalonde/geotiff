@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gden173/geotiff/geotiff"
+	"github.com/paul-lalonde/geotiff/geotiff"
 )
 
 var geoInfo = flag.Bool("info", false, "Print the geotiff file information.")

@@ -246,6 +246,21 @@ func (ifd *BigiFDEntry) value(r io.ReadSeeker, byteOrder binary.ByteOrder) (*tag
 		if err := binary.Read(r, byteOrder, t.doubleData); err != nil {
 			return nil, err
 		}
+	case TIFF_LONG8:
+		t.long8Data = make([]uint64, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.long8Data); err != nil {
+			return nil, err
+		}
+	case TIFF_SLONG8:
+		t.slong8Data = make([]int64, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.slong8Data); err != nil {
+			return nil, err
+		}
+	case TIFF_IFD8:
+		t.long8Data = make([]uint64, ifd.Count)
+		if err := binary.Read(r, byteOrder, &t.long8Data); err != nil {
+			return nil, err
+		}
 	}
 	return &t, nil
 }
@@ -365,6 +380,12 @@ func (t tagData) value() (fieldType, []interface{}) {
 		return t.fType, []interface{}{t.byteData}
 	case ASCII:
 		return t.fType, []interface{}{t.asciiData}
+	case TIFF_LONG8:
+		return t.fType, []interface{}{t.long8Data}
+	case TIFF_SLONG8:
+		return t.fType, []interface{}{t.slong8Data}
+	case TIFF_IFD8:
+		return t.fType, []interface{}{t.long8Data}
 	}
 	return NONE, nil
 }
@@ -444,7 +465,6 @@ func readTags(r io.ReadSeeker) (Tags, head, error) {
 			// within the 4-byte Value Offset, i.e., stored in the
 			// lower numbered bytes.
 			//
-			// TODO(PAL)
 			switch h.tIFIdentifier {
 			case tiffIdentifier:
 				// Whether the Value fits within 4 bytes is determined by the Type

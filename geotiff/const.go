@@ -154,6 +154,9 @@ const (
 	ModelPixelScale     Tag = 33550
 	ModelTiepoint       Tag = 33922
 	ModelTransformation Tag = 34264
+
+	GDAL_METADATA Tag = 42112
+	GDAL_NODATA Tag = 42113
 )
 
 var tagToLabel = map[Tag]string{
